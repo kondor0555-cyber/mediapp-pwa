@@ -1,0 +1,1015 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MediReminder</title>
+
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#8E0B5B">
+
+  <style>
+    :root{
+      --fuchsia-dark:#8E0B5B;
+      --fuchsia-card:#C14D8C;
+      --fuchsia-accent:#FF4FB6;
+      --text:#ffffff;
+      --text-dim: rgba(255,255,255,0.85);
+      --overlay: rgba(0,0,0,.55);
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif;
+      background:linear-gradient(160deg, #7a084f, var(--fuchsia-dark)); color:var(--text);
+      display:flex; flex-direction:column; height:100%;
+    }
+    header{background:var(--fuchsia-dark);padding:14px 20px;font-weight:bold;font-size:20px;text-align:center;color:white;box-shadow:0 2px 6px rgba(0,0,0,.3);}
+    main{flex:1; display:flex; align-items:flex-start; justify-content:center; padding:20px; overflow:auto}
+    .app{width:min(980px,100%); position:relative; padding-bottom:90px}
+    .nav{display:flex; justify-content:space-around; margin-bottom:20px; gap:6px;}
+    .nav button{flex:1; margin:0 2px; padding:12px; border:none; border-radius:16px; cursor:pointer;font-weight:600; background:var(--fuchsia-accent); color:#220013; box-shadow:0 4px 12px rgba(0,0,0,.25);}
+    .card{background:var(--fuchsia-card);border-radius:24px; padding:32px;box-shadow:0 10px 30px rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.12);min-height:460px;}
+    h2{margin:0 0 12px 0; font-size:22px}
+    p.lead{margin:0 0 18px 0; color:var(--text-dim)}
+    .row{display:flex; flex-wrap:wrap; gap:12px}
+    .field{flex:1 1 220px; display:flex; flex-direction:column; gap:6px}
+    label{font-size:13px; color:var(--text-dim)}
+    input[type="text"], input[type="time"], input[type="number"], input[type="datetime-local"], select{
+      appearance:none; border:none; outline:none; border-radius:14px; padding:12px 14px; font-size:15px;
+      background:rgba(0,0,0,.2); color:var(--text);
+      box-shadow:inset 0 0 0 1px rgba(255,255,255,.15);
+    }
+    button.primary{
+      appearance:none; border:none; border-radius:16px; padding:12px 16px; font-weight:600; font-size:15px;
+      background:var(--fuchsia-accent); color:#220013; cursor:pointer; transition:filter .15s ease;
+      box-shadow:0 6px 18px rgba(255,79,182,.35);
+    }
+    .list{margin-top:20px; display:grid; gap:12px}
+    .item{background:rgba(0,0,0,.22); border-radius:16px; padding:14px; display:flex; align-items:center; justify-content:space-between; gap:12px}
+    .actions{display:flex; gap:8px}
+    .btn{background:transparent; border:1px solid rgba(255,255,255,.25); color:var(--text); border-radius:12px; padding:8px 10px; cursor:pointer}
+    .btn:hover{background:rgba(255,255,255,.12)}
+    .title{font-weight:700}
+    .sub{font-size:13px; color:var(--text-dim)}
+    .submenu{display:flex; flex-wrap:wrap; gap:8px; margin-top:12px}
+    .submenu button{flex:1 1 120px; background:rgba(255,255,255,.2); border:none; border-radius:12px; padding:10px; color:var(--text); cursor:pointer}
+    .measure-form{margin-top:16px}
+    .print-bar{margin-top:12px; display:flex; flex-wrap:wrap; gap:8px; align-items:center}
+    .lang-toggle{position:absolute; left:0; right:0; bottom:0; display:flex; justify-content:center; flex-wrap:wrap;padding:16px 8px; gap:12px;background:rgba(0,0,0,0.2); border-radius:20px; margin:0 10px;}
+    .lang-toggle-inner{
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+      align-items:center;
+    }
+    .lang-toggle-inner > div:first-child{
+      display:flex;
+      gap:6px;
+    }
+    .lang-toggle button{border:none; border-radius:999px; padding:8px 14px; background:rgba(255,255,255,.2); color:#fff; cursor:pointer; font-size:12px;}
+    .collapse-toggle{background:rgba(255,255,255,.2); border:none; border-radius:12px; padding:8px 12px; color:#fff; cursor:pointer;font-weight:600}
+    .collapsible-extra{display:none}
+    .modal-backdrop{position:fixed; inset:0; background:var(--overlay); display:none; align-items:center; justify-content:center; z-index:9999;}
+    .modal{width:min(520px,90%); background:#2b0e20; color:#fff; border:1px solid rgba(255,255,255,.2);border-radius:20px; padding:20px; box-shadow:0 10px 30px rgba(0,0,0,.5);}
+    .modal h3{margin:0 0 8px 0}
+    .modal p{margin:0 0 16px 0; color:var(--text-dim)}
+    .modal .actions{justify-content:flex-end; gap:8px}
+    .action-row{
+      flex: 1 1 100%;
+      display:flex;
+      justify-content:flex-end;
+      align-items:flex-end;
+      gap: 8px;
+    }
+
+    /* SPLASH SCREEN */
+    .splash{
+      position:fixed;
+      inset:0;
+      background:radial-gradient(circle at top, #ff7ac8, #5a0438 60%);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      z-index:10000;
+      transition:opacity .6s ease;
+    }
+    .splash.hidden{
+      opacity:0;
+      pointer-events:none;
+    }
+    .splash-inner{
+      text-align:center;
+    }
+    .splash-logo{
+      width:120px;
+      height:120px;
+      border-radius:40px;
+      background:rgba(0,0,0,.18);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      margin:0 auto 18px;
+      box-shadow:0 18px 40px rgba(0,0,0,.55), inset 0 0 0 1px rgba(255,255,255,.18);
+      position:relative;
+    }
+    .splash-logo::before,
+    .splash-logo::after{
+      content:'';
+      position:absolute;
+      background:#fff;
+      border-radius:4px;
+    }
+    .splash-logo::before{
+      width:12px; height:60px;
+    }
+    .splash-logo::after{
+      width:60px; height:12px;
+    }
+    .splash-title{
+      font-size:28px;
+      font-weight:800;
+      letter-spacing:1px;
+      text-shadow:0 4px 18px rgba(0,0,0,.6);
+    }
+    .splash-sub{
+      margin-top:6px;
+      font-size:13px;
+      color:var(--text-dim);
+    }
+  </style>
+</head>
+<body>
+  <!-- SPLASH OVERLAY -->
+  <div id="splash" class="splash">
+    <div class="splash-inner">
+      <div class="splash-logo"></div>
+      <div class="splash-title">MediReminder</div>
+      <div class="splash-sub">Your health, simplified</div>
+    </div>
+  </div>
+
+  <header>MediReminder</header>
+  <main>
+    <div class="app">
+      <!-- Tabs -->
+      <div class="nav">
+        <button id="tab-meds" onclick="showSection('meds')">Φάρμακα</button>
+        <button id="tab-appts" onclick="showSection('appts')">Ραντεβού</button>
+        <button id="tab-measure" onclick="showSection('measure')">Μετρήσεις</button>
+        <button id="tab-prints" onclick="showSection('prints')">Εκτυπώσεις</button>
+      </div>
+
+      <!-- Φάρμακα -->
+      <div id="section-meds" class="card section">
+        <h2 id="meds-title">Υπενθύμιση Φαρμάκου</h2>
+        <p class="lead" id="meds-lead">Βάλε ένα φάρμακο και ώρα υπενθύμισης.</p>
+        <div class="row">
+          <div class="field">
+            <label id="label-med-name">Όνομα φαρμάκου</label>
+            <input id="med-name" type="text" />
+          </div>
+          <div class="field">
+            <label id="label-med-time">Ώρα</label>
+            <input id="med-time" type="time" />
+          </div>
+          <div class="field">
+            <label id="label-med-note">Σημείωση</label>
+            <select id="med-note"></select>
+            <input id="med-note-custom" type="text" placeholder="Άλλο…" style="display:none; margin-top:6px" />
+          </div>
+          <div class="action-row">
+            <label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="med-daily" /> <span id="label-med-daily">Καθημερινά</span></label>
+            <button class="primary" id="btn-add-meds" onclick="addReminder('meds')">+ Πρόσθεσε</button>
+          </div>
+        </div>
+        <div class="list" id="list-meds"></div>
+      </div>
+
+      <!-- Ραντεβού -->
+      <div id="section-appts" class="card section" style="display:none">
+        <h2 id="appts-title">Υπενθύμιση Ραντεβού</h2>
+        <p class="lead" id="appts-lead">Βάλε ραντεβού με ημερομηνία και ώρα (θα ενημερωθείς 3 ώρες νωρίτερα).</p>
+        <div class="row">
+          <div class="field">
+            <label id="label-appt-name">Περιγραφή ραντεβού</label>
+            <input id="appt-name" type="text" />
+          </div>
+          <div class="field">
+            <label id="label-appt-datetime">Ημερομηνία & Ώρα</label>
+            <input id="appt-datetime" type="datetime-local" />
+          </div>
+          <div class="action-row">
+            <button class="primary" id="btn-add-appt" onclick="addReminder('appts')">+ Πρόσθεσε</button>
+          </div>
+        </div>
+        <div class="list" id="list-appts"></div>
+      </div>
+
+      <!-- Μετρήσεις -->
+      <div id="section-measure" class="card section" style="display:none">
+        <h2 id="measure-title-main">Μετρήσεις</h2>
+        <p class="lead" id="measure-lead">Διάλεξε κατηγορία και βάλε τις καθημερινές τιμές σου.</p>
+
+        <div class="submenu">
+          <button id="btn-heart" onclick="openMeasure('heart')">Παλμοί</button>
+          <button id="btn-sugar" onclick="openMeasure('sugar')">Ζάκχαρο</button>
+          <button id="btn-pressure" onclick="openMeasure('pressure')">Πίεση</button>
+          <button id="btn-chol" onclick="openMeasure('chol')">Οξυγόνο</button>
+        </div>
+
+        <div class="measure-form" id="measure-form" style="display:none">
+          <h3 id="measure-title"></h3>
+          <div class="row">
+            <div class="field">
+              <label id="label-measure-value">Τιμή</label>
+              <input id="measure-value" />
+              <small id="measure-hint" style="opacity:.85"></small>
+            </div>
+            <div class="field">
+              <label id="label-measure-note">Σημείωση</label>
+              <select id="measure-note"></select>
+              <input id="measure-note-custom" type="text" placeholder="Άλλο…" style="display:none; margin-top:6px" />
+            </div>
+            <div class="action-row">
+              <button class="primary" id="btn-save-measure" onclick="saveMeasure()">Αποθήκευση</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Εκτυπώσεις (γρήγορη εκτύπωση) -->
+        <div class="print-bar">
+          <label id="label-print" for="print-select" style="font-size:13px; color:var(--text-dim); margin-right:6px">Εκτυπώσεις</label>
+          <select id="print-select" aria-labelledby="label-print"></select>
+          <button class="primary" id="btn-print" onclick="printSelected()">Εκτύπωση</button>
+        </div>
+
+        <div class="list" id="measure-list"></div>
+      </div>
+
+      <!-- Καρτέλα Εκτυπώσεις -->
+      <div id="section-prints" class="card section" style="display:none">
+        <h2 id="prints-title">Εκτυπώσεις</h2>
+        <p class="lead" id="prints-lead">Διάλεξε κατηγορία μετρήσεων για εκτύπωση σε ξεχωριστή σελίδα.</p>
+
+        <div class="print-bar">
+          <label id="label-print2" for="print-select2" style="font-size:13px; color:var(--text-dim); margin-right:6px">Εκτύπωση ανά κατηγορία</label>
+          <select id="print-select2" aria-labelledby="label-print2"></select>
+          <button class="primary" id="btn-print2" onclick="printSelectedFrom('print-select2')">Εκτύπωση</button>
+        </div>
+      </div>
+
+      <!-- Γλώσσα + κουμπί ειδοποιήσεων -->
+      <div class="lang-toggle">
+        <div class="lang-toggle-inner">
+          <div>
+            <button onclick="setLang('el')">Ελληνικά</button>
+            <button onclick="setLang('en')">English</button>
+          </div>
+          <button onclick="requestNotificationPermission()">🔔 Ενεργοποίηση ειδοποιήσεων</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Modal -->
+  <div class="modal-backdrop" id="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal">
+      <h3 id="modal-title">Υπενθύμιση</h3>
+      <p id="modal-message"></p>
+      <div class="actions">
+        <button class="primary" id="modal-snooze">Αναβολή 5’</button>
+        <button class="primary" id="modal-skip">Παράλειψη</button>
+        <button class="primary" id="modal-ok">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Service worker (PWA / offline)
+    if ('serviceWorker' in navigator && String(location.protocol).indexOf('http')===0) {
+      navigator.serviceWorker.register('sw.js').catch(()=>{});
+    }
+
+    // ===== Notifications (PWA / system) =====
+    async function requestNotificationPermission(){
+      if (!('Notification' in window)) {
+        alert('Ο browser δεν υποστηρίζει ειδοποιήσεις.');
+        return;
+      }
+
+      if (Notification.permission === 'granted') {
+        alert(currentLang === 'el'
+          ? 'Οι ειδοποιήσεις είναι ήδη ενεργές.'
+          : 'Notifications are already enabled.');
+        return;
+      }
+
+      const res = await Notification.requestPermission();
+      if (res === 'granted') {
+        alert(currentLang === 'el'
+          ? 'Οι ειδοποιήσεις ενεργοποιήθηκαν.'
+          : 'Notifications enabled.');
+      } else {
+        alert(currentLang === 'el'
+          ? 'Δεν δόθηκε άδεια για ειδοποιήσεις.'
+          : 'Notification permission was not granted.');
+      }
+    }
+
+    async function showNativeNotification(title, body){
+      try{
+        if (!('Notification' in window)) return;
+        if (Notification.permission !== 'granted') return;
+
+        const reg = await navigator.serviceWorker.getRegistration();
+        const options = {
+          body,
+          icon: 'icons/icon-192.png',
+          badge: 'icons/icon-72.png',
+          vibrate: [200,200],
+          tag: 'mediapp-'+Date.now(),
+          data: { url: './' }
+        };
+
+        if (reg && reg.showNotification) {
+          reg.showNotification(title, options);
+        } else {
+          new Notification(title, options);
+        }
+      }catch(e){
+        console.error('Notification error', e);
+      }
+    }
+
+    // ===== i18n =====
+    const i18n = {
+      el: {
+        common:{ del:'Διαγραφή', confirmDel:'Θες σίγουρα να διαγραφεί;', more:'Περισσότερα', less:'Λιγότερα', pleaseFill:'Συμπλήρωσε: ' },
+        tabs: { meds: 'Φάρμακα', appts: 'Ραντεβού', measure: 'Μετρήσεις', prints:'Εκτυπώσεις' },
+        meds: {
+          title: 'Υπενθύμιση Φαρμάκου',
+          lead: 'Βάλε ένα φάρμακο και ώρα υπενθύμισης.',
+          name: 'Όνομα φαρμάκου', time: 'Ώρα', daily: 'Καθημερινά', add: '+ Πρόσθεσε',
+          noteLabel:'Σημείωση',
+          noteOptions:['—','Πριν το φαγητό','Μετά το φαγητό','Με νερό','Άδειο στομάχι','Πριν τον ύπνο','Άλλο…'],
+          list_time: (t,d,n)=>`Ώρα: ${t} ${d?'· Καθημερινά':''}${n?` · Σημείωση: ${n}`:''}`
+        },
+        appts: {
+          title: 'Υπενθύμιση Ραντεβού',
+          lead: 'Βάλε ραντεβού με ημερομηνία και ώρα (θα ενημερωθείς 3 ώρες νωρίτερα).',
+          name: 'Περιγραφή ραντεβού', datetime: 'Ημερομηνία & Ώρα', add: '+ Πρόσθεσε',
+          list_line: (dt,at)=>` Ραντεβού: ${dt} · Ειδοποίηση στις: ${at}`
+        },
+        measure: {
+          title: 'Μετρήσεις', lead: 'Διάλεξε κατηγορία και βάλε τις καθημερινές τιμές σου.',
+          cats: { heart:'Παλμοί', sugar:'Ζάκχαρο', pressure:'Πίεση', chol:'Οξυγόνο' },
+          value:'Τιμή', save:'Αποθήκευση',
+          entry:(date,time,val,note)=>`Ημερομηνία: ${date} · Ώρα: ${time} · Τιμή: ${val}${note?` · Σημ.: ${note}`:''}`,
+          entryTitle:(kind)=>({heart:'Παλμοί',sugar:'Ζάκχαρο',pressure:'Πίεση',chol:'Οξυγόνο'}[kind]||kind),
+          pressureLabel:'Πίεση (Μεγάλη-Μικρή)', pressureHint:'π.χ. 15-7 ή 120-80',
+          pulseHint:'bpm (20–220)', oxygenHint:'% SpO₂ (50–100)',
+          placeholders:{ heart:'π.χ. 72', sugar:'π.χ. 110', pressure:'π.χ. 15-7', chol:'π.χ. 97' },
+          noteLabel:'Σημείωση',
+          noteOptions:{
+            heart:['—','Σε ηρεμία','Μετά από περπάτημα','Μετά από άσκηση','Άλλο…'],
+            sugar:['—','Νηστικός/η','Πριν το φαγητό','2 ώρες μετά το φαγητό','Άλλο…'],
+            pressure:['—','Καθιστός/ή','Όρθιος/α','Πρωί','Βράδυ','Άλλο…'],
+            chol:['—','Σε ηρεμία','Μετά από περπάτημα','Άλλο…']
+          },
+          printLabel:'Εκτυπώσεις',
+          printBtn:'Εκτύπωση'
+        },
+        prints:{
+          title:'Εκτυπώσεις',
+          lead:'Διάλεξε κατηγορία μετρήσεων για εκτύπωση.',
+          label:'Εκτύπωση ανά κατηγορία',
+          btn:'Εκτύπωση'
+        },
+        modal: { reminder:'Υπενθύμιση', appt:'Υπενθύμιση ραντεβού', ok:'OK', skip:'Παράλειψη', snooze5:'Αναβολή 5’' },
+        errors:{
+          need_time:'Δώσε ώρα.', need_datetime:'Δώσε ημερομηνία και ώρα.',
+          need_value:'Δώσε τιμή.', bad_pressure:'Δώσε πίεση μορφής Μεγάλη-Μικρή, π.χ. 15-7',
+          bad_pulse:'Οι παλμοί πρέπει να είναι ακέραιος 20–220.',
+          bad_oxygen:'Το οξυγόνο πρέπει να είναι 50–100 (% SpO₂).',
+          bad_text:'Επιτρέπονται γράμματα, αριθμοί και απλά σύμβολα.'
+        },
+        untitled:'(χωρίς τίτλο)',
+        reminder_now_title:'Υπενθύμιση',
+        appt_now_title:'Υπενθύμιση ραντεβού'
+      },
+      en: {
+        common:{ del:'Delete', confirmDel:'Are you sure you want to delete it?', more:'More', less:'Less', pleaseFill:'Please fill: ' },
+        tabs: { meds: 'Medicines', appts: 'Appointments', measure: 'Measurements', prints:'Prints' },
+        meds: {
+          title: 'Medicine Reminder',
+          lead: 'Enter a medicine name and a reminder time.',
+          name: 'Medicine name', time: 'Time', daily: 'Daily', add: '+ Add',
+          noteLabel:'Note',
+          noteOptions:['—','Before meal','After meal','With water','Empty stomach','Before sleep','Other…'],
+          list_time: (t,d,n)=>`Time: ${t} ${d?'· Daily':''}${n?` · Note: ${n}`:''}`
+        },
+        appts: {
+          title: 'Appointment Reminder',
+          lead: 'Set an appointment date & time (you will be notified 3 hours earlier).',
+          name: 'Appointment description', datetime: 'Date & Time', add: '+ Add',
+          list_line: (dt,at)=>` Appointment: ${dt} · Reminder at: ${at}`
+        },
+        measure: {
+          title: 'Measurements', lead: 'Choose a category and add your daily values.',
+          cats: { heart:'Pulse', sugar:'Glycemia', pressure:'Blood Pressure', chol:'Oxygen' },
+          value:'Value', save:'Save',
+          entry:(date,time,val,note)=>`Date: ${date} · Time: ${time} · Value: ${val}${note?` · Note: ${note}`:''}`,
+          entryTitle:(kind)=>({heart:'Pulse',sugar:'Glycemia',pressure:'Blood Pressure',chol:'Oxygen'}[kind]||kind),
+          pressureLabel:'Blood Pressure (Sys-Dia)', pressureHint:'e.g. 120-80 or 15-7',
+          pulseHint:'bpm (20–220)', oxygenHint:'% SpO₂ (50–100)',
+          placeholders:{ heart:'e.g. 72', sugar:'e.g. 110', pressure:'e.g. 120-80', chol:'e.g. 97' },
+          noteLabel:'Note',
+          noteOptions:{
+            heart:['—','At rest','After walking','After exercise','Other…'],
+            sugar:['—','Fasting','Before meal','2h after meal','Other…'],
+            pressure:['—','Sitting','Standing','Morning','Evening','Other…'],
+            chol:['—','At rest','After walking','Other…']
+          },
+          printLabel:'Print',
+          printBtn:'Print'
+        },
+        prints:{
+          title:'Prints',
+          lead:'Select a measurement category to print.',
+          label:'Print by category',
+          btn:'Print'
+        },
+        modal: { reminder:'Reminder', appt:'Appointment reminder', ok:'OK', skip:'Skip', snooze5:'Snooze 5’' },
+        errors:{
+          need_time:'Please enter a time.', need_datetime:'Please enter date & time.',
+          need_value:'Please enter a value.', bad_pressure:'Enter pressure as Sys-Dia, e.g. 120-80',
+          bad_pulse:'Pulse must be an integer between 20 and 220.',
+          bad_oxygen:'Oxygen must be between 50 and 100 (% SpO₂).',
+          bad_text:'Letters, numbers and basic symbols are allowed.'
+        },
+        untitled:'(untitled)',
+        reminder_now_title:'Reminder',
+        appt_now_title:'Appointment reminder'
+      }
+    };
+
+    const STORAGE_LANG = 'medireminder-lang';
+    let currentLang = localStorage.getItem(STORAGE_LANG) || (String(navigator.language||'').toLowerCase().startsWith('el')?'el':'en');
+    function t(){ return i18n[currentLang]; }
+
+    // storage
+    const STORAGE_REMINDERS = 'medireminder-reminders';
+    const STORAGE_MEASURES  = 'measures';
+    let reminders = JSON.parse(localStorage.getItem(STORAGE_REMINDERS) || '{"meds":[],"appts":[]}');
+    let measures  = JSON.parse(localStorage.getItem(STORAGE_MEASURES)   || '{}');
+
+    function persist(){
+      localStorage.setItem(STORAGE_REMINDERS, JSON.stringify(reminders));
+      localStorage.setItem(STORAGE_MEASURES,  JSON.stringify(measures));
+    }
+
+    // helpers
+    function todayStr(){ const d=new Date(); return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate(); }
+    function z(n){ return String(n).padStart(2,'0'); }
+    function nowLocalDatetimeValue(){
+      const d=new Date();
+      return d.getFullYear()+'-'+z(d.getMonth()+1)+'-'+z(d.getDate())+'T'+z(d.getHours())+':'+z(d.getMinutes());
+    }
+    function fillSelect(sel, options){ sel.innerHTML=''; options.forEach(x=>{ const o=document.createElement('option'); o.value=x; o.textContent=x; sel.appendChild(o); }); }
+    function requireAlert(missing){
+      if(!missing.length) return false;
+      alert(t().common.pleaseFill + missing.join(', '));
+      return true;
+    }
+
+    // Όνομα φαρμάκου / σημειώσεις: γράμματα, αριθμοί, κενά και μερικά σύμβολα
+    const LETTERS_REGEX = /^[\p{L}\p{N}\s\.\-,()]+$/u;
+    function isLettersOnly(v){ return LETTERS_REGEX.test(v); }
+
+    function isIntInRange(v,min,max){ const n=Number(v); return Number.isInteger(n)&&n>=min&&n<=max; }
+    function isPressure(v){
+      const cleaned = String(v).trim().replace(/[,\s]+/g,'-');
+      return /^(\d{1,3})(?:\.\d{1,2})?-(\d{1,3})(?:\.\d{1,2})?$/.test(cleaned);
+    }
+    function coercePressure(v){
+      const cleaned = String(v).trim().replace(/[,\s]+/g,'-');
+      const m = cleaned.match(/^(\d{1,3}(?:\.\d{1,2})?)-(\d{1,3}(?:\.\d{1,2})?)$/);
+      return m ? (m[1]+'-'+m[2]) : null;
+    }
+    function isFutureOrNow(dt){ return dt.getTime() >= Date.now(); }
+
+    // print dropdown (και στις 2 καρτέλες)
+    function rebuildPrintSelect(){
+      const ids = ['print-select','print-select2'];
+      const items = [
+        ['heart',   t().measure.cats.heart],
+        ['sugar',   t().measure.cats.sugar],
+        ['pressure',t().measure.cats.pressure],
+        ['chol',    t().measure.cats.chol]
+      ];
+      ids.forEach(id=>{
+        const sel = document.getElementById(id);
+        if(!sel) return;
+        const prev = sel.value || 'heart';
+        sel.innerHTML = '';
+        for (const [val,label] of items){
+          const o = document.createElement('option');
+          o.value = val; o.textContent = label;
+          sel.appendChild(o);
+        }
+        sel.value = prev;
+      });
+    }
+
+    // ήχος / δόνηση
+    let beepTimer = null;
+    function playBeepOnce(){
+      try{
+        const ctx = new (window.AudioContext||window.webkitAudioContext)();
+        const o=ctx.createOscillator(), g=ctx.createGain();
+        o.type='sine'; o.frequency.value=900; g.gain.value=0.35;
+        o.connect(g).connect(ctx.destination); o.start();
+        setTimeout(()=>{try{o.stop(); ctx.close();}catch{}},600);
+      }catch{}
+    }
+    function vibrateOnce(){ try{ if('vibrate' in navigator){ navigator.vibrate([200,200]); } }catch{} }
+    function startBeepLoop(){ if(beepTimer) return; playBeepOnce(); vibrateOnce(); beepTimer=setInterval(()=>{playBeepOnce();vibrateOnce();},900); }
+    function stopBeepLoop(){ if(beepTimer){ clearInterval(beepTimer); beepTimer=null; } try{ if('vibrate' in navigator) navigator.vibrate(0);}catch{} }
+
+    // modal
+    const modalEl = document.getElementById('modal-backdrop');
+    const modalTitleEl = document.getElementById('modal-title');
+    const modalMsgEl = document.getElementById('modal-message');
+    const modalOkEl = document.getElementById('modal-ok');
+    const modalSkipEl = document.getElementById('modal-skip');
+    const modalSnoozeEl = document.getElementById('modal-snooze');
+    let activeModal = null;
+
+    function showModal(title, message, context){
+      modalTitleEl.textContent = title;
+      modalMsgEl.textContent = message;
+      modalEl.style.display = 'flex';
+      activeModal = context || null;
+      startBeepLoop();
+
+      // system ειδοποίηση (αν έχει δοθεί άδεια)
+      showNativeNotification(title, message);
+    }
+    function closeModal(){ modalEl.style.display='none'; stopBeepLoop(); activeModal=null; }
+
+    modalOkEl.addEventListener('click', ()=>{
+      if(activeModal && activeModal.type==='med'){
+        const r = activeModal.item;
+        r.lastFireDate = todayStr();
+        if(!r.daily){
+          const idx = reminders.meds.findIndex(x=>x.id===r.id);
+          if(idx>-1) reminders.meds.splice(idx,1);
+          renderList('meds');
+        }
+        persist();
+      }
+      closeModal();
+    });
+    modalSkipEl.addEventListener('click', ()=>{
+      if(activeModal && activeModal.type==='med'){
+        const r = activeModal.item;
+        r.lastFireDate = todayStr();
+        persist();
+      }
+      closeModal();
+    });
+    modalSnoozeEl.addEventListener('click', ()=>{
+      if(!activeModal){ closeModal(); return; }
+      stopBeepLoop();
+      const ctx = activeModal;
+      closeModal();
+      setTimeout(()=>{
+        if(ctx.type==='med'){
+          const r = ctx.item;
+          showModal(t().reminder_now_title, `${r.name||t().untitled} — ${r.time}`, {type:'med', item:r});
+        }else if(ctx.type==='appt'){
+          const a = ctx.item;
+          const when = new Date(a.datetime).toLocaleString(currentLang==='el'?'el-GR':'en-US');
+          showModal(t().appt_now_title, `${a.name||t().untitled} — ${when}`, {type:'appt', item:a});
+        }
+      }, 5*60*1000);
+    });
+
+    // tabs
+    function showSection(id){
+      document.querySelectorAll('.section').forEach(s=>s.style.display='none');
+      document.getElementById('section-'+id).style.display='block';
+    }
+
+    // ===== Reminders (Φάρμακα & Ραντεβού) =====
+
+    function addReminder(type){
+      if(type==='meds'){
+        const name = document.getElementById('med-name').value.trim();
+        const time = document.getElementById('med-time').value;
+        const noteSel = document.getElementById('med-note');
+        const noteCustom = document.getElementById('med-note-custom').value.trim();
+        const needCustom = (noteSel.value==='Άλλο…' || noteSel.value==='Other…');
+        const missing = [];
+        if(!name) missing.push(t().meds.name);
+        if(!time) missing.push(t().meds.time);
+        if(needCustom && !noteCustom) missing.push(t().meds.noteLabel);
+        if(requireAlert(missing)) return;
+
+        if(!isLettersOnly(name)) return alert(t().errors.bad_text);
+        if(needCustom && noteCustom && !isLettersOnly(noteCustom)) return alert(t().errors.bad_text);
+
+        const noteVal = needCustom ? noteCustom : (noteSel.value==='—' ? '' : noteSel.value);
+        const daily = document.getElementById('med-daily').checked;
+        const item = { id:Date.now(), name, time, daily, lastFireDate:null, note: noteVal||'' };
+        reminders.meds.push(item);
+        persist(); renderList('meds');
+
+        document.getElementById('med-name').value = '';
+        document.getElementById('med-time').value = '';
+        document.getElementById('med-daily').checked = false;
+        noteSel.selectedIndex = 0;
+        document.getElementById('med-note-custom').value=''; document.getElementById('med-note-custom').style.display='none';
+      }else{
+        const name = document.getElementById('appt-name').value.trim();
+        const datetime = document.getElementById('appt-datetime').value;
+        const missing = [];
+        if(!name) missing.push(t().appts.name);
+        if(!datetime) missing.push(t().appts.datetime);
+        if(requireAlert(missing)) return;
+
+        if(!isLettersOnly(name)) return alert(t().errors.bad_text);
+
+        const dt = new Date(datetime);
+        if(!isFutureOrNow(dt)){
+          setApptMinNow();
+          return alert(currentLang==='el' ? 'Η ημερομηνία/ώρα δεν μπορεί να είναι στο παρελθόν.' : 'Date/time cannot be in the past.');
+        }
+
+        const item = { id:Date.now(), name, datetime:dt.toISOString(), notified:false };
+        reminders.appts.push(item);
+        persist(); renderList('appts');
+
+        document.getElementById('appt-name').value = '';
+        document.getElementById('appt-datetime').value = '';
+      }
+    }
+
+    function setApptMinNow(){
+      const el = document.getElementById('appt-datetime');
+      const nowVal = nowLocalDatetimeValue();
+      el.min = nowVal;
+      if(el.value && el.value < nowVal){ el.value = nowVal; }
+    }
+    document.getElementById('appt-datetime').addEventListener('focus', setApptMinNow);
+    document.getElementById('appt-datetime').addEventListener('click', setApptMinNow);
+    setApptMinNow();
+
+    function renderList(type){
+      const list = document.getElementById('list-'+type); list.innerHTML='';
+      reminders[type].forEach(r=>{
+        const div = document.createElement('div'); div.className='item';
+        let left='';
+        if(type==='meds'){
+          left = `<div><div class="title">${r.name||t().untitled}</div><div class="sub">${t().meds.list_time(r.time, r.daily, r.note||'')}</div></div>`;
+        } else {
+          const apptDate = new Date(r.datetime);
+          const notifyAt = new Date(apptDate.getTime() - 3*60*60*1000);
+          const dtStr = apptDate.toLocaleString(currentLang==='el'?'el-GR':'en-US');
+          const notifStr = notifyAt.toLocaleString(currentLang==='el'?'el-GR':'en-US');
+          left = `<div><div class="title">${r.name||t().untitled}</div><div class="sub">${t().appts.list_line(dtStr, notifStr)}</div></div>`;
+        }
+        const actions = document.createElement('div'); actions.className='actions';
+        const del = document.createElement('button'); del.className='btn'; del.textContent=t().common.del; del.onclick=()=>deleteReminder(type,r.id);
+        actions.appendChild(del); div.innerHTML=left; div.appendChild(actions); list.appendChild(div);
+      });
+      applyCollapsible(list, 2);
+    }
+
+    function deleteReminder(type,id){
+      if(!confirm(t().common.confirmDel)) return;
+      const arr = reminders[type]; const idx = arr.findIndex(x=>x.id===id);
+      if(idx>-1){
+        arr.splice(idx,1);
+        persist(); renderList(type);
+      }
+    }
+
+    // ===== Έλεγχος ραντεβού =====
+    setInterval(()=>{
+      checkAppointmentsForDueNotifications();
+    }, 30000);
+
+    function checkAppointmentsForDueNotifications(){
+      const now = Date.now();
+      reminders.appts.forEach(a=>{
+        const apptTime = new Date(a.datetime);
+        const notifyTime = new Date(apptTime.getTime() - 3*60*60*1000);
+        if(!a.notified && now >= notifyTime.getTime()){
+          const when = apptTime.toLocaleString(currentLang==='el'?'el-GR':'en-US');
+          showModal(t().appt_now_title, `${a.name||t().untitled} — ${when}`, {type:'appt', item:a});
+          a.notified = true;
+        }
+      });
+      persist();
+    }
+
+    // ===== Φάρμακα: tick κάθε 30" =====
+    setInterval(()=>{
+      const now = new Date();
+      const hh = String(now.getHours()).padStart(2,'0');
+      const mm = String(now.getMinutes()).padStart(2,'0');
+      const cur = hh+':'+mm;
+      const today = todayStr();
+      reminders.meds.slice().forEach(r=>{
+        if(r.time === cur){
+          if(r.lastFireDate === today) return;
+          showModal(t().reminder_now_title, `${r.name||t().untitled} — ${cur}`, {type:'med', item:r});
+        }
+      });
+    }, 30000);
+
+    // ===== Μετρήσεις =====
+    let currentMeasure = null;
+
+    function updateMeasureNoteOptions(kind){
+      const sel = document.getElementById('measure-note');
+      const opts = t().measure.noteOptions[kind] || ['—','Άλλο…'];
+      fillSelect(sel, opts);
+      document.getElementById('measure-note-custom').placeholder = (currentLang==='el'?'Άλλο…':'Other…');
+    }
+
+    function unitFor(kind){ return (kind==='heart') ? 'bpm' : (kind==='chol' ? '% SpO₂' : ''); }
+
+    function updateMeasureInputsForCurrent(){
+      const input = document.getElementById('measure-value');
+      const hint  = document.getElementById('measure-hint');
+      if(!currentMeasure){
+        input.type='number'; input.placeholder='';
+        document.getElementById('label-measure-value').textContent = t().measure.value;
+        hint.textContent='';
+        return;
+      }
+      if(currentMeasure==='pressure'){
+        input.type='text';
+        input.placeholder = t().measure.placeholders.pressure;
+        document.getElementById('label-measure-value').textContent = t().measure.pressureLabel;
+        hint.textContent = t().measure.pressureHint;
+      } else if(currentMeasure==='heart'){
+        input.type='number'; input.step='1'; input.min='20'; input.max='220';
+        input.placeholder = t().measure.placeholders.heart;
+        document.getElementById('label-measure-value').textContent = `${t().measure.value} (${unitFor('heart')})`;
+        hint.textContent = t().measure.pulseHint;
+      } else if(currentMeasure==='chol'){
+        input.type='number'; input.step='1'; input.min='50'; input.max='100';
+        input.placeholder = t().measure.placeholders.chol;
+        document.getElementById('label-measure-value').textContent = `${t().measure.value} (${unitFor('chol')})`;
+        hint.textContent = t().measure.oxygenHint;
+      } else { // sugar
+        input.type='number'; input.step='1'; input.min='40'; input.max='600';
+        input.placeholder = t().measure.placeholders.sugar;
+        document.getElementById('label-measure-value').textContent = t().measure.value;
+        hint.textContent = '';
+      }
+    }
+
+    function openMeasure(kind){
+      currentMeasure = kind;
+      document.getElementById('measure-form').style.display='block';
+      document.getElementById('measure-title').innerText =
+        (currentLang==='el'?'Καταχώρηση: ':'Entry: ') + t().measure.entryTitle(kind);
+
+      updateMeasureInputsForCurrent();
+      updateMeasureNoteOptions(kind);
+
+      document.getElementById('measure-note-custom').value='';
+      document.getElementById('measure-note-custom').style.display='none';
+      document.getElementById('measure-note').onchange = (e)=>{
+        const v = e.target.value;
+        const isCustom = (v==='Άλλο…' || v==='Other…');
+        document.getElementById('measure-note-custom').style.display = isCustom ? 'block' : 'none';
+      };
+    }
+
+    function saveMeasure(){
+      const input = document.getElementById('measure-value');
+      let raw = String(input.value).trim();
+
+      const noteSel = document.getElementById('measure-note');
+      const needCustom = (noteSel.value==='Άλλο…' || noteSel.value==='Other…');
+      const noteCustom = document.getElementById('measure-note-custom').value.trim();
+      const missing = [];
+      if(!raw) missing.push(t().measure.value);
+      if(needCustom && !noteCustom) missing.push(t().measure.noteLabel);
+      if(requireAlert(missing)) return;
+
+      if(needCustom && noteCustom && !isLettersOnly(noteCustom)) return alert(t().errors.bad_text);
+
+      let val = raw;
+      if(currentMeasure==='pressure'){
+        if(!isPressure(raw)) return alert(t().errors.bad_pressure);
+        val = coercePressure(raw);
+      } else if(currentMeasure==='heart'){
+        if(!isIntInRange(raw,20,220)) return alert(t().errors.bad_pulse);
+        val = Number(raw) + ' ' + unitFor('heart');
+      } else if(currentMeasure==='chol'){
+        if(!isIntInRange(raw,50,100)) return alert(t().errors.bad_oxygen);
+        val = Number(raw) + ' ' + unitFor('chol');
+      } else {
+        if(!isIntInRange(raw,40,600)) return alert(currentLang==='el'?'Το ζάχαρο πρέπει να είναι 40–600.':'Glycemia must be 40–600.');
+        val = Number(raw);
+      }
+
+      const noteVal = needCustom ? noteCustom : (noteSel.value==='—' ? '' : noteSel.value);
+
+      const now = new Date();
+      const date = now.toLocaleDateString(currentLang==='el'?'el-GR':'en-US');
+      const time = now.toLocaleTimeString(currentLang==='el'?'el-GR':'en-US',{hour:'2-digit',minute:'2-digit'});
+
+      if(!measures[currentMeasure]) measures[currentMeasure]=[];
+      measures[currentMeasure].push({date,time,value:val, note:noteVal||''});
+      persist(); renderMeasures();
+
+      input.value=''; input.placeholder='';
+      document.getElementById('label-measure-value').textContent = t().measure.value;
+      document.getElementById('measure-hint').textContent='';
+      updateMeasureNoteOptions(currentMeasure);
+      document.getElementById('measure-note-custom').value='';
+      document.getElementById('measure-note-custom').style.display='none';
+    }
+
+    function renderMeasures(){
+      const list = document.getElementById('measure-list'); list.innerHTML='';
+      for(const kind in measures){
+        const title = t().measure.entryTitle(kind);
+        measures[kind].forEach((m, idx)=>{
+          const div = document.createElement('div'); div.className='item';
+          div.innerHTML = `<div><div class="title">${title}</div><div class="sub">${t().measure.entry(m.date,m.time,m.value,m.note||'')}</div></div>`;
+          const actions = document.createElement('div'); actions.className='actions';
+          const delBtn = document.createElement('button');
+          delBtn.className='btn'; delBtn.textContent = t().common.del;
+          delBtn.onclick = ()=>{
+            if(confirm(t().common.confirmDel)){
+              measures[kind].splice(idx,1);
+              persist(); renderMeasures();
+            }
+          };
+          actions.appendChild(delBtn);
+          div.appendChild(actions);
+          list.appendChild(div);
+        });
+      }
+      applyCollapsible(list, 2);
+    }
+
+    // print
+    function printSelected(){ printSelectedFrom('print-select'); }
+    function printSelectedFrom(selId){
+      const sel = document.getElementById(selId);
+      if(!sel) return;
+      printMeasures(sel.value);
+    }
+    function printMeasures(kind){
+      const data = measures[kind] || [];
+      const title = t().measure.entryTitle(kind);
+      const w = window.open('', '_blank');
+      const thDate = currentLang==='el'?'Ημερομηνία':'Date';
+      const thTime = currentLang==='el'?'Ώρα':'Time';
+      const thValue= currentLang==='el'?'Τιμή':'Value';
+      const thNote = currentLang==='el'?'Σημείωση':'Note';
+      const style = `
+        <style>
+          body{font-family:system-ui,-apple-system,Segoe UI,Roboto; padding:20px}
+          h1{margin:0 0 10px 0; font-size:20px}
+          table{border-collapse:collapse; width:100%}
+          th,td{border:1px solid #999; padding:8px; text-align:left}
+          th{background:#eee}
+        </style>`;
+      const rows = data.map(d=>`<tr><td>${d.date}</td><td>${d.time}</td><td>${d.value}</td><td>${d.note||''}</td></tr>`).join('') || `<tr><td colspan="4">-</td></tr>`;
+      w.document.write(`
+        <html><head><title>${title}</title>${style}</head>
+        <body>
+          <h1>${title}</h1>
+          <table>
+            <thead><tr><th>${thDate}</th><th>${thTime}</th><th>${thValue}</th><th>${thNote}</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+          <script>window.onload=()=>window.print();<\/script>
+        </body></html>`);
+      w.document.close();
+    }
+
+    // collapsible
+    function applyCollapsible(listEl, threshold=2){
+      listEl.querySelectorAll('.collapsible-extra, .collapse-toggle').forEach(n=>n.remove());
+      const items = Array.from(listEl.children).filter(n=>n.classList.contains('item'));
+      if(items.length <= threshold) return;
+
+      const extra = document.createElement('div');
+      extra.className = 'collapsible-extra';
+      for(let i=threshold;i<items.length;i++){ extra.appendChild(items[i]); }
+
+      const btn = document.createElement('button');
+      btn.className = 'collapse-toggle';
+      const updText = (open)=>{
+        const n = extra.children.length;
+        btn.textContent = open ? t().common.less : `${t().common.more} (${n})`;
+      };
+      updText(false);
+      btn.addEventListener('click', ()=>{
+        const open = extra.style.display !== 'none';
+        extra.style.display = open ? 'none' : 'block';
+        updText(!open);
+      });
+
+      listEl.appendChild(btn);
+      listEl.appendChild(extra);
+      extra.style.display = 'none';
+    }
+
+    // setLang
+    function setLang(lang){
+      if(!i18n[lang]) return;
+      currentLang = lang; localStorage.setItem(STORAGE_LANG, lang);
+
+      // tabs
+      document.getElementById('tab-meds').textContent     = t().tabs.meds;
+      document.getElementById('tab-appts').textContent    = t().tabs.appts;
+      document.getElementById('tab-measure').textContent  = t().tabs.measure;
+      document.getElementById('tab-prints').textContent   = t().tabs.prints;
+
+      // meds
+      document.getElementById('meds-title').textContent = t().meds.title;
+      document.getElementById('meds-lead').textContent  = t().meds.lead;
+      document.getElementById('label-med-name').textContent = t().meds.name;
+      document.getElementById('label-med-time').textContent = t().meds.time;
+      document.getElementById('label-med-note').textContent = t().meds.noteLabel;
+      document.getElementById('label-med-daily').textContent= t().meds.daily;
+      document.getElementById('btn-add-meds').textContent  = t().meds.add;
+      fillSelect(document.getElementById('med-note'), t().meds.noteOptions);
+      document.getElementById('med-note-custom').placeholder = (lang==='el'?'Άλλο…':'Other…');
+
+      // appts
+      document.getElementById('appts-title').textContent  = t().appts.title;
+      document.getElementById('appts-lead').textContent   = t().appts.lead;
+      document.getElementById('label-appt-name').textContent = t().appts.name;
+      document.getElementById('label-appt-datetime').textContent = t().appts.datetime;
+      document.getElementById('btn-add-appt').textContent  = t().appts.add;
+      setApptMinNow();
+
+      // measure
+      document.getElementById('measure-title-main').textContent = t().measure.title;
+      document.getElementById('measure-lead').textContent = t().measure.lead;
+      document.getElementById('btn-heart').textContent    = t().measure.cats.heart;
+      document.getElementById('btn-sugar').textContent    = t().measure.cats.sugar;
+      document.getElementById('btn-pressure').textContent = t().measure.cats.pressure;
+      document.getElementById('btn-chol').textContent     = t().measure.cats.chol;
+      document.getElementById('label-measure-note').textContent = t().measure.noteLabel;
+      document.getElementById('btn-save-measure').textContent   = t().measure.save;
+
+      // Εκτυπώσεις
+      document.getElementById('label-print').textContent = t().measure.printLabel;
+      document.getElementById('btn-print').textContent   = t().measure.printBtn;
+      document.getElementById('prints-title').textContent = t().prints.title;
+      document.getElementById('prints-lead').textContent  = t().prints.lead;
+      document.getElementById('label-print2').textContent = t().prints.label;
+      document.getElementById('btn-print2').textContent   = t().prints.btn;
+
+      rebuildPrintSelect();
+      updateMeasureInputsForCurrent();
+
+      // modal
+      document.getElementById('modal-title').textContent = t().modal.reminder;
+      document.getElementById('modal-ok').textContent    = t().modal.ok;
+      document.getElementById('modal-skip').textContent  = t().modal.skip;
+      document.getElementById('modal-snooze').textContent= t().modal.snooze5;
+
+      renderAll();
+      document.documentElement.lang = (lang==='el'?'el':'en');
+    }
+
+    document.getElementById('med-note').addEventListener('change', (e)=>{
+      const isCustom = (e.target.value==='Άλλο…' || e.target.value==='Other…');
+      document.getElementById('med-note-custom').style.display = isCustom ? 'block' : 'none';
+    });
+
+    function renderAll(){ renderList('meds'); renderList('appts'); renderMeasures(); }
+
+    // SPLASH fade-out
+    window.addEventListener('load', ()=>{
+      const s = document.getElementById('splash');
+      if(!s) return;
+      setTimeout(()=>{
+        s.classList.add('hidden');
+        setTimeout(()=>{ if(s && s.parentNode){ s.parentNode.removeChild(s); } }, 700);
+      }, 1500);
+    });
+
+    // ---- Αρχικοποίηση ----
+    setLang(currentLang);
+    checkAppointmentsForDueNotifications(); // για ραντεβού που "χάθηκαν" όσο ήταν κλειστός ο υπολογιστής
+  </script>
+</body>
+</html>
